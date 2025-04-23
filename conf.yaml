@@ -1,0 +1,30 @@
+base:
+  data_dir: ./data
+
+network:
+  addr: 0.0.0.0:8911
+  idle_timeout: 10s
+  max_conns: 1000
+  read_timeout: 10s
+  write_timeout: 10s
+
+mem_index:
+  data_structure: swisstable
+  shard_count: 256
+  btree_degree: 8
+  swiss_table_initial_size: 1024
+
+mem_cache:
+  enable: true
+  data_structure: lru
+  size: 1024
+
+file_manager:
+  max_size: 1073741824
+  max_opened: 10
+  sync_interval: 5s
+
+merge:
+  auto: false
+  interval: 1h
+  min_ratio: 0.3
