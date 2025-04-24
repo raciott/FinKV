@@ -11,7 +11,7 @@ import (
 type FincasDB struct {
 	*redis2.RString // 字符串操作接口
 	//*redis.RHash   // 哈希表操作接口
-	//*redis.RList   // 列表操作接口
+	*redis2.RList // 列表操作接口
 	//*redis.RSet    // 集合操作接口
 	//*redis.RZSet   // 有序集合操作接口
 }
@@ -96,7 +96,7 @@ func NewFincasDB(dataDir string) *FincasDB {
 	return &FincasDB{
 		RString: redis2.NewRString(dw), // 字符串操作接口
 		//RHash:   redis2.NewRHash(dw),   // 哈希表操作接口
-		//RList:   redis2.NewRList(dw),   // 列表操作接口
+		RList: redis2.NewRList(dw), // 列表操作接口
 		//RSet:    redis2.NewRSet(dw),    // 集合操作接口
 		//RZSet:   redis2.NewRZSet(dw),   // 有序集合操作接口
 	}

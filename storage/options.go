@@ -2,6 +2,7 @@
 package storage
 
 import (
+	"FinKV/config"
 	"FinKV/util"
 	"log"
 	"math/rand"
@@ -78,9 +79,9 @@ func DefaultOptions() *Options {
 	}
 
 	// 返回默认配置
-	return &Options{
+	opt := &Options{
 		// 基本配置
-		DataDir: "/tmp/fincas", // 默认数据目录
+		DataDir: "./data", // 默认数据目录
 
 		// 内存索引配置
 		MemIndexDS:         SwissTable, // 默认使用SwissTable作为索引结构
@@ -120,6 +121,10 @@ func DefaultOptions() *Options {
 		MergeInterval: time.Hour, // 每小时执行一次合并
 		MinMergeRatio: 0.3,       // 当可回收空间超过30%时执行合并
 	}
+
+	opt.MergeInterval = config.Get().Merge.Interval
+
+	return opt
 }
 
 // WithDataDir 设置数据目录路径的选项函数

@@ -7,6 +7,7 @@ import (
 	"FinKV/storage/file_manager"
 	"FinKV/storage/index" // 内存索引
 	"FinKV/util"
+	"log"
 
 	"encoding/binary"
 	"fmt"
@@ -47,6 +48,7 @@ type Bitcask struct {
 func Open(options ...storage2.Option) (*Bitcask, error) {
 	// 初始化默认配置
 	cfg := storage2.DefaultOptions()
+
 	for _, opt := range options {
 		opt(cfg)
 	}
@@ -108,6 +110,7 @@ func Open(options ...storage2.Option) (*Bitcask, error) {
 
 	// 启动自动 Merge
 	if cfg.AutoMerge {
+		log.Printf("自动合并已启动 %d\n", cfg.MergeInterval)
 		db.mergeTicker = time.NewTicker(cfg.MergeInterval)
 		go db.autoMerge()
 	}
@@ -135,6 +138,7 @@ func (db *Bitcask) loadDataFiles() error {
 		}
 	}
 
+	log.Println("索引构建完成")
 	return nil
 }
 
@@ -150,6 +154,7 @@ func (db *Bitcask) loadDataFile(fileID int) error {
 		// 读取头部信息
 		header := make([]byte, storage2.HeaderSize)
 		n, err := file.ReadAt(header, offset)
+
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -183,6 +188,8 @@ func (db *Bitcask) loadDataFile(fileID int) error {
 		if err != nil {
 			return fmt.Errorf("decode record failed: %w", err)
 		}
+
+		//log.Printf("%s  %s  %d \n", r.Key, r.Value, r.Flags)
 
 		// 更新内存索引
 		entry := storage2.Entry{
@@ -522,6 +529,7 @@ func (db *Bitcask) autoMerge() {
 		case <-db.mergeTicker.C:
 			if ratio, err := db.EstimateInvalidRatio(); err == nil {
 				if ratio >= db.cfg.MinMergeRatio {
+					log.Printf("start auto merge")
 					_ = db.Merge()
 				}
 			}
@@ -531,6 +539,7 @@ func (db *Bitcask) autoMerge() {
 	}
 }
 
+// EstimateInvalidRatio 估算无效数据比例
 func (db *Bitcask) EstimateInvalidRatio() (float64, error) {
 	if db.closed {
 		return 0, err_def.ErrDBClosed

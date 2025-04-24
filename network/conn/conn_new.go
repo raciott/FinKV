@@ -132,3 +132,19 @@ func (c *Connection) Stats() Stats {
 	defer c.mu.RUnlock()
 	return *c.stats
 }
+
+// WriteArray 写入数组
+func (c *Connection) WriteArray(arr [][]byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	err := c.writer.WriteArray(arr)
+	if err != nil {
+		c.stats.Errors++
+		return err
+	}
+
+	c.stats.WriteCmds++
+	c.stats.LastActive = time.Now()
+	return nil
+}

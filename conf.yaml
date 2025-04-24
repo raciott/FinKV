@@ -25,6 +25,6 @@ file_manager:
   sync_interval: 5s
 
 merge:
-  auto: false
-  interval: 1h
+  auto: true
+  interval: 60s
   min_ratio: 0.3

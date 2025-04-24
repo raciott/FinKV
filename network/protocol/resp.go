@@ -204,3 +204,66 @@ func (w *Writer) WriteInteger(n int64) error {
 	_, err = w.writer.Write(CRLF)
 	return err
 }
+
+// WriteBulk 写入一个数组
+func (w *Writer) WriteBulk(b []byte) error {
+	if b == nil {
+		_, err := w.writer.Write([]byte("$-1\r\n"))
+		return err
+	}
+
+	_, err := w.writer.Write([]byte{BULK})
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write([]byte(strconv.Itoa(len(b))))
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write(CRLF)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write(b)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write(CRLF)
+	return err
+}
+
+// WriteArray 写入一堆数组
+func (w *Writer) WriteArray(arr [][]byte) error {
+	if arr == nil {
+		_, err := w.writer.Write([]byte("$-1\r\n"))
+		return err
+	}
+
+	_, err := w.writer.Write([]byte{ARRAY})
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write([]byte(strconv.Itoa(len(arr))))
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write(CRLF)
+	if err != nil {
+		return err
+	}
+
+	for _, item := range arr {
+		err = w.WriteBulk(item)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

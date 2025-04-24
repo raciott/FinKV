@@ -2,7 +2,10 @@ package redis
 
 import (
 	"FinKV/err_def"
+	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -115,4 +118,183 @@ func (rs *RString) IncrBy(key string, value int64) (int64, error) {
 	}
 
 	return result, nil
+}
+
+// Decr 将键对应的值减少1
+func (rs *RString) Decr(key string) (int64, error) {
+	return rs.DecrBy(key, 1)
+}
+
+// DecrBy 将键对应的值减少指定的整数
+func (rs *RString) DecrBy(key string, value int64) (int64, error) {
+	return rs.IncrBy(key, -value)
+}
+
+// Append 将value追加到键对应的值后面(不存在就新建)
+func (rs *RString) Append(key, value string) (int64, error) {
+	if len(key) == 0 {
+		return 0, err_def.ErrEmptyKey
+	}
+
+	strKey := GetStringKey(key)
+	wb := rs.dw.GetDB().NewWriteBatch(nil)
+	defer wb.Release()
+
+	val, err := rs.dw.GetDB().Get(strKey)
+	if err != nil {
+		if err := wb.Put(strKey, value); err != nil {
+			return 0, err
+		}
+		if err := wb.Commit(); err != nil {
+			return 0, err
+		}
+		return int64(len(value)), nil
+	}
+
+	newVal := val + value
+	if err := wb.Put(strKey, newVal); err != nil {
+		return 0, err
+	}
+	if err := wb.Commit(); err != nil {
+		return 0, err
+	}
+
+	return int64(len(newVal)), nil
+}
+
+// GetSet 将键对应的值替换为value并返回旧值
+func (rs *RString) GetSet(key, value string) (string, error) {
+	if len(key) == 0 {
+		return "", err_def.ErrEmptyKey
+	}
+
+	strKey := GetStringKey(key)
+	wb := rs.dw.GetDB().NewWriteBatch(nil)
+	defer wb.Release()
+
+	oldVal, err := rs.dw.GetDB().Get(strKey)
+	if err != nil && !errors.Is(err, err_def.ErrKeyNotFound) {
+		return "", err
+	}
+
+	if err := wb.Put(strKey, value); err != nil {
+		return "", err
+	}
+	if err := wb.Commit(); err != nil {
+		return "", err
+	}
+
+	return oldVal, nil
+}
+
+// SetNX 设置键值对，如果键不存在则设置成功，否则设置失败
+func (rs *RString) SetNX(key, value string) (bool, error) {
+	if len(key) == 0 {
+		return false, err_def.ErrEmptyKey
+	}
+
+	strKey := GetStringKey(key)
+	wb := rs.dw.GetDB().NewWriteBatch(nil)
+	defer wb.Release()
+
+	exists, err := rs.dw.GetDB().Exists(strKey)
+	if err != nil {
+		return false, err
+	}
+	if exists {
+		return false, nil
+	}
+
+	if err := wb.Put(strKey, value); err != nil {
+		return false, err
+	}
+	if err := wb.Commit(); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// MSet 同时设置多个键值对
+func (rs *RString) MSet(pairs map[string]string) error {
+	if len(pairs) == 0 {
+		return nil
+	}
+
+	wb := rs.dw.GetDB().NewWriteBatch(nil)
+	defer wb.Release()
+
+	for k, v := range pairs {
+		if len(k) == 0 {
+			return err_def.ErrEmptyKey
+		}
+		if err := wb.Put(GetStringKey(k), v); err != nil {
+			return err
+		}
+	}
+
+	return wb.Commit()
+}
+
+// MGet 同时获取多个键对应的值
+func (rs *RString) MGet(keys ...string) (map[string]string, error) {
+	if len(keys) == 0 {
+		return make(map[string]string), nil
+	}
+
+	result := make(map[string]string, len(keys))
+	var errs []string
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for _, key := range keys {
+		if len(key) == 0 {
+			errs = append(errs, fmt.Sprintf("empty key found in position %d", len(result)))
+			continue
+		}
+
+		// 并发获取键对应的值
+		wg.Add(1)
+		go func(k string) {
+			defer wg.Done()
+			val, err := rs.dw.GetDB().Get(GetStringKey(k))
+			if err != nil {
+				if !errors.Is(err, err_def.ErrKeyNotFound) {
+					mu.Lock()
+					errs = append(errs, fmt.Sprintf("error getting key %s: %v", k, err))
+					mu.Unlock()
+				}
+			}
+
+			mu.Lock()
+			result[k] = val
+			mu.Unlock()
+		}(key)
+	}
+
+	wg.Wait()
+
+	if len(errs) > 0 {
+		return result, fmt.Errorf("multiple errors occurred: %s", strings.Join(errs, "; "))
+	}
+
+	return result, nil
+}
+
+// StrLen 返回键对应的值的长度
+func (rs *RString) StrLen(key string) (int64, error) {
+	if len(key) == 0 {
+		return 0, err_def.ErrEmptyKey
+	}
+
+	val, err := rs.dw.GetDB().Get(GetStringKey(key))
+	if err != nil {
+		if errors.Is(err, err_def.ErrKeyNotFound) {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	return int64(len(val)), nil
 }

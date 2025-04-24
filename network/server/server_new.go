@@ -121,14 +121,14 @@ func (s *Server) Start() error {
 	for {
 		netConn, err := listener.Accept()
 
-		log.Printf("accept a new connection")
-
 		if err != nil {
 			if s.closed {
 				return nil
 			}
 			log.Printf("accept error: %v", err)
 			continue
+		} else {
+			log.Printf("accept a new connection")
 		}
 
 		// 处理新连接
