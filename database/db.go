@@ -10,8 +10,8 @@ import (
 // FincasDB 是主数据库结构体，包含了各种数据类型的操作接口
 type FincasDB struct {
 	*redis2.RString // 字符串操作接口
-	//*redis.RHash   // 哈希表操作接口
-	*redis2.RList // 列表操作接口
+	*redis2.RHash   // 哈希表操作接口
+	*redis2.RList   // 列表操作接口
 	//*redis.RSet    // 集合操作接口
 	//*redis.RZSet   // 有序集合操作接口
 }
@@ -95,8 +95,8 @@ func NewFincasDB(dataDir string) *FincasDB {
 	// 创建并返回数据库实例，初始化各种数据类型的操作接口
 	return &FincasDB{
 		RString: redis2.NewRString(dw), // 字符串操作接口
-		//RHash:   redis2.NewRHash(dw),   // 哈希表操作接口
-		RList: redis2.NewRList(dw), // 列表操作接口
+		RHash:   redis2.NewRHash(dw),   // 哈希表操作接口
+		RList:   redis2.NewRList(dw),   // 列表操作接口
 		//RSet:    redis2.NewRSet(dw),    // 集合操作接口
 		//RZSet:   redis2.NewRZSet(dw),   // 有序集合操作接口
 	}
@@ -106,8 +106,8 @@ func NewFincasDB(dataDir string) *FincasDB {
 func (db *FincasDB) Close() {
 	// 释放各种数据类型的操作接口资源
 	db.RString.Release() // 释放字符串操作接口
-	//db.RHash.Release()   // 释放哈希表操作接口
-	//db.RList.Release()   // 释放列表操作接口
+	db.RHash.Release()   // 释放哈希表操作接口
+	db.RList.Release()   // 释放列表操作接口
 	//db.RSet.Release()    // 释放集合操作接口
 	//db.RZSet.Release()   // 释放有序集合操作接口
 }

@@ -66,6 +66,27 @@ func (h *Handler) Handle(conn *conn.Connection, cmd *protocol.Command) error {
 		return h.handleLPop(conn, cmd)
 	case "RPOP":
 		return h.handleRPop(conn, cmd)
+		// Hash commands
+	case "HSET":
+		return h.handleHSet(conn, cmd)
+	case "HGET":
+		return h.handleHGet(conn, cmd)
+	case "HMSET":
+		return h.handleHMSet(conn, cmd)
+	case "HMGET":
+		return h.handleHMGet(conn, cmd)
+	case "HDEL":
+		return h.handleHDel(conn, cmd)
+	case "HEXISTS":
+		return h.handleHExists(conn, cmd)
+	case "HKEYS":
+		return h.handleHKeys(conn, cmd)
+	case "HVALS":
+		return h.handleHVals(conn, cmd)
+	case "HGETALL":
+		return h.handleHGetAll(conn, cmd)
+	case "HLEN":
+		return h.handleHLen(conn, cmd)
 	default:
 		return nil
 	}
@@ -376,4 +397,206 @@ func (h *Handler) handleRPop(conn *conn.Connection, cmd *protocol.Command) error
 	}
 
 	return conn.WriteString(val)
+}
+
+// 处理hset(设置哈希值)
+func (h *Handler) handleHSet(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 3 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	err := h.db.HSet(string(cmd.Args[0]), string(cmd.Args[1]), string(cmd.Args[2]))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	return conn.WriteString("OK")
+}
+
+// 处理hget(获取哈希值)
+func (h *Handler) handleHGet(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 2 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	val, err := h.db.HGet(string(cmd.Args[0]), string(cmd.Args[1]))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	return conn.WriteString(val)
+}
+
+// 处理hmset(批量设置哈希值)
+func (h *Handler) handleHMSet(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) < 3 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	if (len(cmd.Args)-1)%2 != 0 {
+		return conn.WriteError(ErrSyntax)
+	}
+
+	kvPairs := make(map[string]string, (len(cmd.Args)-1)/2)
+	for i := 1; i < len(cmd.Args); i += 2 {
+		kvPairs[string(cmd.Args[i])] = string(cmd.Args[i+1])
+	}
+
+	err := h.db.HMSet(string(cmd.Args[0]), kvPairs)
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	return conn.WriteString("OK")
+}
+
+// 处理hmget(批量获取哈希值)
+func (h *Handler) handleHMGet(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) < 2 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	fields := make([]string, 0, len(cmd.Args))
+	for _, arg := range cmd.Args {
+		fields = append(fields, string(arg))
+	}
+
+	kvMap, err := h.db.HMGet(fields[0], fields[1:]...)
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	var res [][]byte
+	for i := 1; i < len(fields); i++ {
+		res = append(res, []byte(kvMap[fields[i]]))
+	}
+
+	return conn.WriteArray(res)
+}
+
+// 处理hdel(删除哈希值)
+func (h *Handler) handleHDel(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) < 2 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	fields := make([]string, 0, len(cmd.Args))
+	for _, arg := range cmd.Args {
+		fields = append(fields, string(arg))
+	}
+
+	n, err := h.db.HDel(fields[0], fields[1:]...)
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	return conn.WriteInteger(n)
+}
+
+// 处理hexists(判断哈希值是否存在)
+func (h *Handler) handleHExists(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 2 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	ok, err := h.db.HExists(string(cmd.Args[0]), string(cmd.Args[1]))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	if ok {
+		return conn.WriteInteger(1)
+	}
+	return conn.WriteInteger(0)
+}
+
+// 处理hkeys(获取所有哈希键)
+func (h *Handler) handleHKeys(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 1 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	keys, err := h.db.HKeys(string(cmd.Args[0]))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	var res [][]byte
+	for _, key := range keys {
+		res = append(res, []byte(key))
+	}
+
+	return conn.WriteArray(res)
+}
+
+// 处理hvals(获取所有哈希值)
+func (h *Handler) handleHVals(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 1 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	vals, err := h.db.HVals(string(cmd.Args[0]))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	var res [][]byte
+	for _, val := range vals {
+		res = append(res, []byte(val))
+	}
+
+	return conn.WriteArray(res)
+}
+
+// 处理hgetall(获取所有哈希键值对)
+func (h *Handler) handleHGetAll(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 1 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	kvMap, err := h.db.HGetAll(string(cmd.Args[0]))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	var res [][]byte
+	for key, val := range kvMap {
+		res = append(res, []byte(key))
+		res = append(res, []byte(val))
+	}
+
+	return conn.WriteArray(res)
+}
+
+// 处理hlen(获取哈希键的数量)
+func (h *Handler) handleHLen(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 1 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	n, err := h.db.HLen(string(cmd.Args[0]))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	return conn.WriteInteger(n)
+}
+
+// 处理hincrby(对哈希值进行加法运算)
+func (h *Handler) handleHIncrBy(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 3 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	val, err := strconv.ParseInt(string(cmd.Args[2]), 10, 64)
+	if err != nil {
+		return conn.WriteError(fmt.Errorf("invalid value %s", string(cmd.Args[2])))
+	}
+
+	n, err := h.db.HIncrBy(string(cmd.Args[0]), string(cmd.Args[1]), val)
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	return conn.WriteInteger(n)
 }
