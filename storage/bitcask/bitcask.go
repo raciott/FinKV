@@ -70,8 +70,6 @@ func Open(options ...storage2.Option) (*Bitcask, error) {
 		cfg.MemIndexShardCount,
 		cfg.BTreeDegree,
 		cfg.BTreeComparator,
-		cfg.SkipListRandSource,
-		cfg.SkipListComparator,
 		cfg.SwissTableSize,
 	)
 

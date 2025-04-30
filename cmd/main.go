@@ -40,8 +40,8 @@ func printLogo() {
 func main() {
 
 	confPath := flag.String("conf", "./conf.yaml", "path to conf file") // 配置文件路径
-	port := flag.Int("port", 8911, "server port")                       // 监听端口
-	dataDir := flag.String("dir", "./data", "path to data")             // 数据目录
+	//port := flag.Int("port", 8911, "server port")                      // 监听端口
+	//dataDir := flag.String("dir", "./data", "path to data")             // 数据目录
 
 	flag.Parse() // 解析命令行参数
 
@@ -56,12 +56,12 @@ func main() {
 	}
 
 	// 创建数据库实例
-	db := database.NewFincasDB(*dataDir) // 使用指定的数据目录初始化数据库
-	defer db.Close()                     // 确保程序退出前关闭数据库
+	db := database.NewFincasDB(config.Get().Base.DataDir) // 使用指定的数据目录初始化数据库
+	defer db.Close()                                      // 确保程序退出前关闭数据库
 
-	addr := fmt.Sprintf(":%d", *port)
+	//addr := fmt.Sprintf(":%d", *port)
 
-	srv, err := server.New(db, &addr)
+	srv, err := server.New(db, &config.Get().Network.Addr)
 	if err != nil {
 		log.Fatal(err)
 	}

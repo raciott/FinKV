@@ -74,25 +74,30 @@ func loadConfig(v *viper.Viper) *Config {
 
 	cfg.Base.DataDir = v.GetString("base.data_dir")
 
+	// 加载网络配置
 	cfg.Network.Addr = v.GetString("network.addr")
 	cfg.Network.IdleTimeout = v.GetDuration("network.idle_timeout")
 	cfg.Network.MaxConns = v.GetInt("network.max_conns")
 	cfg.Network.ReadTimeout = v.GetDuration("network.read_timeout")
 	cfg.Network.WriteTimeout = v.GetDuration("network.write_timeout")
 
+	// 加载索引配置
 	cfg.MemIndex.DataStructure = v.GetString("mem_index.data_structure")
 	cfg.MemIndex.ShardCount = v.GetInt("mem_index.shard_count")
 	cfg.MemIndex.BTreeDegree = v.GetInt("mem_index.btree_degree")
 	cfg.MemIndex.SwissTableInitialSize = v.GetInt("mem_index.swiss_table_initial_size")
 
+	// 加载缓存配置
 	cfg.MemCache.Enable = v.GetBool("mem_cache.enable")
 	cfg.MemCache.DataStructure = v.GetString("mem_cache.data_structure")
 	cfg.MemCache.Size = v.GetInt("mem_cache.size")
 
+	// 加载文件管理配置
 	cfg.FileManager.MaxSize = v.GetInt("file_manager.max_size")
 	cfg.FileManager.MaxOpened = v.GetInt("file_manager.max_opened")
 	cfg.FileManager.SyncInterval = v.GetDuration("file_manager.sync_interval")
 
+	// 加载合并配置
 	cfg.Merge.Auto = v.GetBool("merge.auto")
 	cfg.Merge.Interval = v.GetDuration("merge.interval")
 	cfg.Merge.MinRatio = v.GetFloat64("merge.min_ratio")
@@ -146,7 +151,7 @@ func Init(configPath string) error {
 
 			mu.Lock()
 			conf = newConfig
-			//log.Printf("配置热更新完成")
+			log.Printf("配置热更新完成")
 			mu.Unlock()
 
 			log.Printf("config file change and reloded")

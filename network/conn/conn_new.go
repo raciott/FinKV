@@ -148,3 +148,19 @@ func (c *Connection) WriteArray(arr [][]byte) error {
 	c.stats.LastActive = time.Now()
 	return nil
 }
+
+// WriteBulk 写入bulk
+func (c *Connection) WriteBulk(b []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	err := c.writer.WriteBulk(b)
+	if err != nil {
+		c.stats.Errors++
+		return err
+	}
+
+	c.stats.WriteCmds++
+	c.stats.LastActive = time.Now()
+	return nil
+}

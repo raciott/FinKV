@@ -216,7 +216,7 @@ package server
 //			// 单机模式下直接处理命令
 //			if err := s.handler.Handle(connection, cmd); err != nil {
 //				s.stats.IncrErrorCount()
-//				log.Printf("failed to handle command: %v", err)
+//				log.Printf("failed to handler command: %v", err)
 //			}
 //
 //			s.stats.IncrCmdCount()

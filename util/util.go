@@ -40,7 +40,7 @@ type shard struct {
 	sync.RWMutex
 }
 
-// Options 配置选项
+// BloomConfig  配置选项
 type BloomConfig struct {
 	ExpectedElements  uint64  // 预期元素数量
 	FalsePositiveRate float64 // 期望误判率

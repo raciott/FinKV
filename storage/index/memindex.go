@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"log"
-	"math/rand"
 	"sync"
 )
 
@@ -22,8 +21,6 @@ type MemIndexShard[K comparable, V any] struct {
 // - shardCount: 分片数量
 // - btreeDegree: BTree 的度数（仅在 memIndexType 为 BTree 时使用）
 // - btreeLessFunc: BTree 的比较函数（仅在 memIndexType 为 BTree 时使用）
-// - skipListRandSource: SkipList 的随机源（可选）
-// - skipListLessFunc: SkipList 的比较函数（仅在 memIndexType 为 SkipList 时使用）
 // - swissTableSize: SwissTable 的初始大小（仅在 memIndexType 为 SwissTable 时使用）
 // 返回值：初始化后的 MemIndexShard 实例
 func NewMemIndexShard[K comparable, V any](
@@ -31,8 +28,6 @@ func NewMemIndexShard[K comparable, V any](
 	shardCount int,
 	btreeDegree int,
 	btreeLessFunc func(a, b K) bool,
-	skipListRandSource rand.Source,
-	skipListLessFunc func(a, b K) int,
 	swissTableSize uint32,
 ) *MemIndexShard[K, V] {
 	index := &MemIndexShard[K, V]{
@@ -50,15 +45,6 @@ func NewMemIndexShard[K comparable, V any](
 				log.Fatal("BTree less func cannot be nil")
 			}
 			// index.shards[i] = NewBTreeIndex[K, V](btreeDegree, btreeLessFunc)
-		case storage2.SkipList:
-			if skipListLessFunc == nil {
-				log.Fatal("SkipList less func cannot be nil")
-			}
-			// if skipListRandSource == nil {
-			//	index.shards[i] = NewSkipListIndex[K, V](skipListLessFunc)
-			// } else {
-			//	index.shards[i] = NewSkipListIndex[K, V](skipListLessFunc, WithRandSource(skipListRandSource))
-			// }
 		case storage2.SwissTable:
 			if swissTableSize <= 0 {
 				swissTableSize = 1 << 10 // 默认大小为 1024
