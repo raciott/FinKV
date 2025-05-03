@@ -1,6 +1,3 @@
-// Package storage 定义了FincasKV的存储引擎接口和常量
-// 实现了基于Bitcask模型的高性能键值存储系统
-// 提供了持久化、索引、缓存等核心功能
 package storage
 
 // 存储引擎相关常量
