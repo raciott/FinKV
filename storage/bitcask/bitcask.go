@@ -108,7 +108,7 @@ func Open(options ...storage2.Option) (*Bitcask, error) {
 
 	// 启动自动 Merge
 	if cfg.AutoMerge {
-		log.Printf("自动合并已启动 %d\n", cfg.MergeInterval)
+		//log.Printf("自动合并已启动 %d\n", cfg.MergeInterval)
 		db.mergeTicker = time.NewTicker(cfg.MergeInterval)
 		go db.autoMerge()
 	}
@@ -136,7 +136,7 @@ func (db *Bitcask) loadDataFiles() error {
 		}
 	}
 
-	log.Println("索引构建完成")
+	//log.Println("索引构建完成")
 	return nil
 }
 

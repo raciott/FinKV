@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/spf13/viper"
+	"github.com/spf13/viper" // 用于识别配置文件，并且支持热更新
 )
 
 type BaseConfig struct {
@@ -130,7 +130,7 @@ func Init(configPath string) error {
 		mu.Lock()
 		conf = loadConfig(v)
 
-		log.Printf("配置初始完成")
+		//log.Printf("配置初始完成")
 
 		// 配置文件热更新监听
 		v.WatchConfig()

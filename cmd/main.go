@@ -40,8 +40,9 @@ func printLogo() {
 func main() {
 
 	confPath := flag.String("conf", "./conf.yaml", "path to conf file") // 配置文件路径
-	//port := flag.Int("port", 8911, "server port")                      // 监听端口
-	//dataDir := flag.String("dir", "./data", "path to data")             // 数据目录
+	raftID := flag.String("raftID", "node1", "raft id")
+	raftAddr := flag.String("raft_addr", "", "raft listen address") // 默认单机模式启动
+	joinAddr := flag.String("join_addr", "", "join raft cluster")
 
 	flag.Parse() // 解析命令行参数
 
@@ -59,8 +60,6 @@ func main() {
 	db := database.NewFincasDB(config.Get().Base.DataDir) // 使用指定的数据目录初始化数据库
 	defer db.Close()                                      // 确保程序退出前关闭数据库
 
-	//addr := fmt.Sprintf(":%d", *port)
-
 	srv, err := server.New(db, &config.Get().Network.Addr)
 	if err != nil {
 		log.Fatal(err)
@@ -74,8 +73,8 @@ func main() {
 
 	// 在后台启动服务器
 	go func() {
-		if err := srv.Start(); err != nil {
-			log.Fatal(err) // 服务器启动失败，记录错误并退出
+		if err := srv.Start(*raftAddr, *raftID, *joinAddr); err != nil {
+			log.Fatal(err) // 服务器启动,失败，记录错误并退出
 		}
 	}()
 

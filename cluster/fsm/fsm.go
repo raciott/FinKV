@@ -2,11 +2,10 @@ package fsm
 
 import (
 	"FinKV/cluster/command"
+	"FinKV/cluster/raft"
 	"FinKV/database"
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/raft"
-	"io"
 )
 
 type FSM struct {
@@ -17,9 +16,9 @@ func New(db *database.FincasDB) *FSM {
 	return &FSM{db: db}
 }
 
-func (f *FSM) Apply(log *raft.Log) interface{} {
+func (f *FSM) Apply(log *raft.LogEntry) interface{} {
 	var cmd command.BaseCmd
-	if err := json.Unmarshal(log.Data, &cmd); err != nil {
+	if err := json.Unmarshal(log.Command, &cmd); err != nil {
 		return fmt.Errorf("failed to unmarshal command: %w", err)
 	}
 
@@ -30,19 +29,3 @@ func (f *FSM) Apply(log *raft.Log) interface{} {
 
 	return nil
 }
-
-func (f *FSM) Snapshot() (raft.FSMSnapshot, error) {
-	return &Snapshot{}, nil
-}
-
-func (f *FSM) Restore(rc io.ReadCloser) error {
-	return nil
-}
-
-type Snapshot struct{}
-
-func (s *Snapshot) Persist(sink raft.SnapshotSink) error {
-	return nil
-}
-
-func (s *Snapshot) Release() {}
