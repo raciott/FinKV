@@ -68,8 +68,6 @@ func Open(options ...storage2.Option) (*Bitcask, error) {
 	memIndex := index.NewMemIndexShard[string, storage2.Entry](
 		cfg.MemIndexDS,
 		cfg.MemIndexShardCount,
-		cfg.BTreeDegree,
-		cfg.BTreeComparator,
 		cfg.SwissTableSize,
 	)
 
@@ -78,6 +76,9 @@ func Open(options ...storage2.Option) (*Bitcask, error) {
 		switch cfg.MemCacheDS {
 		case storage2.LRU:
 			memCache = cache.NewLRUCache[string, []byte](cfg.MemCacheSize)
+		case storage2.LFU:
+			//TODO 实现 LFU 缓存
+			log.Fatal("lru缓存并未实现")
 		default:
 			return nil, fmt.Errorf("unsopported memcache DS: %s", cfg.MemCacheDS)
 		}
@@ -108,7 +109,6 @@ func Open(options ...storage2.Option) (*Bitcask, error) {
 
 	// 启动自动 Merge
 	if cfg.AutoMerge {
-		//log.Printf("自动合并已启动 %d\n", cfg.MergeInterval)
 		db.mergeTicker = time.NewTicker(cfg.MergeInterval)
 		go db.autoMerge()
 	}
@@ -136,7 +136,6 @@ func (db *Bitcask) loadDataFiles() error {
 		}
 	}
 
-	//log.Println("索引构建完成")
 	return nil
 }
 
@@ -186,8 +185,6 @@ func (db *Bitcask) loadDataFile(fileID int) error {
 		if err != nil {
 			return fmt.Errorf("decode record failed: %w", err)
 		}
-
-		//log.Printf("%s  %s  %d \n", r.Key, r.Value, r.Flags)
 
 		// 更新内存索引
 		entry := storage2.Entry{
@@ -256,13 +253,6 @@ func (db *Bitcask) Put(key string, value []byte) error {
 			return fmt.Errorf("update cache failed: %w", err)
 		}
 
-		// 添加打印缓存内容的代码
-		fmt.Println("====== 缓存内容 ======")
-		cacheItems := db.memCache.Items()
-		for k, v := range cacheItems {
-			fmt.Printf("键: %s, 值: %s\n", k, string(v.([]byte)))
-		}
-		fmt.Println("======================")
 	}
 
 	// 更新布隆过滤器
@@ -319,15 +309,6 @@ func (db *Bitcask) Get(key string) ([]byte, error) {
 	// 更新缓存
 	if db.memCache != nil {
 		_ = db.memCache.Insert(key, record.Value)
-
-		// 添加打印缓存内容的代码
-		fmt.Println("====== 缓存内容 ======")
-		cacheItems := db.memCache.Items()
-		for k, v := range cacheItems {
-			fmt.Printf("键: %s, 值: %s\n", k, string(v.([]byte)))
-		}
-		fmt.Println("======================")
-
 	}
 
 	return record.Value, nil
@@ -376,15 +357,6 @@ func (db *Bitcask) Del(key string) error {
 	// 从缓存删除
 	if db.memCache != nil {
 		_ = db.memCache.Delete(key)
-
-		// 添加打印缓存内容的代码
-		fmt.Println("====== 缓存内容 ======")
-		cacheItems := db.memCache.Items()
-		for k, v := range cacheItems {
-			fmt.Printf("键: %s, 值: %s\n", k, string(v.([]byte)))
-		}
-		fmt.Println("======================")
-
 	}
 
 	return nil
@@ -518,9 +490,13 @@ func (db *Bitcask) Merge() error {
 	}
 
 	db.fm = fm
+
+	log.Println("merge data success")
+
 	return nil
 }
 
+// 自动合并(由于是文件追加方式，会产生大量废弃数据)
 func (db *Bitcask) autoMerge() {
 	for {
 		select {
@@ -576,39 +552,17 @@ func (db *Bitcask) EstimateInvalidRatio() (float64, error) {
 	return 1 - float64(validSize)/float64(totalSize), nil
 }
 
-func (db *Bitcask) StartMerge(interval time.Duration) {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-
-	if db.mergeTicker != nil {
-		db.mergeTicker.Stop()
-	}
-	db.mergeTicker = time.NewTicker(interval)
-	go db.autoMerge()
-}
-
-func (db *Bitcask) StopMerge() {
-	db.mu.Lock()
-	defer db.mu.Unlock()
-
-	if db.mergeTicker != nil {
-		db.mergeTicker.Stop()
-		db.mergeTicker = nil
-	}
-	select {
-	case db.mergeStopChan <- struct{}{}:
-	default:
-	}
-}
-
+// GetFilter 获取布隆过滤器
 func (db *Bitcask) GetFilter() *util.ShardedBloomFilter {
 	return db.filter
 }
 
+// GetMemIndex 获取内存索引
 func (db *Bitcask) GetMemIndex() storage2.MemIndex[string, storage2.Entry] {
 	return db.memIndex
 }
 
+// GetDataDir 获取数据目录
 func (db *Bitcask) GetDataDir() string {
 	return db.cfg.DataDir
 }

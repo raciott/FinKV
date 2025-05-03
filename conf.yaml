@@ -11,7 +11,6 @@ network:
 mem_index:
   data_structure: swisstable
   shard_count: 256
-  btree_degree: 8
   swiss_table_initial_size: 1024
 
 mem_cache:
@@ -26,5 +25,5 @@ file_manager:
 
 merge:
   auto: true
-  interval: 60s
+  interval: 1800s
   min_ratio: 0.3

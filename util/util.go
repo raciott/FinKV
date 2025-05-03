@@ -9,6 +9,8 @@ import (
 	"sync/atomic"
 )
 
+// 用于创建布隆过滤器
+
 const (
 	// 默认分片数,必须是2的幂
 	defaultShards = 16
@@ -239,29 +241,6 @@ func (bf *ShardedBloomFilter) hashValues(data []byte) []uint64 {
 		values[i] = h1 + uint64(i)*h2
 	}
 	return values
-}
-
-// Stats 获取统计信息
-func (bf *ShardedBloomFilter) Stats() map[string]interface{} {
-	currentN := atomic.LoadUint64(&bf.n)
-	return map[string]interface{}{
-		"total_bits":        bf.m,
-		"num_items":         currentN,
-		"num_shards":        len(bf.shards),
-		"bits_per_shard":    bf.shardBits,
-		"num_hash_funcs":    bf.k,
-		"auto_scale":        bf.autoScale,
-		"estimated_fpp":     bf.estimateFPP(currentN),
-		"current_fill_rate": float64(currentN) / float64(bf.m),
-	}
-}
-
-// estimateFPP 估算误判率
-func (bf *ShardedBloomFilter) estimateFPP(n uint64) float64 {
-	if n == 0 {
-		return 0
-	}
-	return math.Pow(1-math.Exp(-float64(bf.k)*float64(n)/float64(bf.m)), float64(bf.k))
 }
 
 // Reset 重置布隆过滤器

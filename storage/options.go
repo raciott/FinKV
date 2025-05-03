@@ -1,17 +1,9 @@
-// Package storage 实现了FincasKV的存储引擎，提供键值对的持久化存储和高效访问
 package storage
 
 import (
 	"FinKV/config"
 	"time"
 )
-
-// BTreeLessFunc 定义了B树索引的比较函数类型 (用于比较两个键的大小关系，返回a是否小于b)
-type BTreeLessFunc[K comparable] func(a, b K) bool
-
-// SkipListLessFunc 定义了跳表索引的比较函数类型
-// 用于比较两个键的大小关系，返回负数表示a<b，0表示a=b，正数表示a>b
-type SkipListLessFunc[K comparable] func(a, b K) int
 
 // MemIndexType 定义了内存索引的类型 (用于选择不同的内存索引实现)
 type MemIndexType string
@@ -29,6 +21,7 @@ type MemCacheType string
 // LRU 支持的内存缓存类型常量
 const (
 	LRU MemCacheType = "lru" // 最近最少使用缓存策略，淘汰最久未使用的数据
+	LFU MemCacheType = "lfu" // LFU缓存策略，淘汰最近最少使用的数据
 )
 
 // Options 存储引擎的配置选项
@@ -38,11 +31,9 @@ type Options struct {
 	DataDir string // 数据目录路径，存储引擎的所有数据文件将存放在此目录下
 
 	// 内存索引相关配置
-	MemIndexDS         MemIndexType          // 内存索引数据结构类型，可选BTree、SkipList或SwissTable
-	MemIndexShardCount int                   // 内存索引分片数量，用于提高并发性能，减少锁竞争
-	BTreeDegree        int                   // B树的度，影响B树的分支因子和平衡性能
-	BTreeComparator    BTreeLessFunc[string] // B树的比较器，用于比较键的大小关系
-	SwissTableSize     uint32                // SwissTable的初始大小，影响哈希表的性能和内存使用
+	MemIndexDS         MemIndexType // 内存索引数据结构类型，可选BTree、SkipList或SwissTable
+	MemIndexShardCount int          // 内存索引分片数量，用于提高并发性能，减少锁竞争
+	SwissTableSize     uint32       // SwissTable的初始大小，影响哈希表的性能和内存使用
 
 	// 内存缓存相关配置
 	OpenMemCache bool         // 是否开启内存缓存，开启后可提高热点数据访问速度
@@ -64,8 +55,7 @@ type Options struct {
 // 用于以函数选项模式设置存储引擎的配置参数
 type Option func(opt *Options)
 
-// DefaultOptions 返回存储引擎的默认配置选项
-// 提供了一组合理的默认值，适用于大多数场景
+// DefaultOptions 返回默认存储引擎的默认配置选项
 func DefaultOptions() *Options {
 
 	// 返回默认配置
@@ -76,12 +66,6 @@ func DefaultOptions() *Options {
 		// 内存索引配置
 		MemIndexDS:         SwissTable, // 默认使用SwissTable作为索引结构
 		MemIndexShardCount: 1 << 8,     // 默认256个分片
-		BTreeDegree:        8,          // B树默认度为8
-
-		// B树比较器，使用字符串自然顺序
-		BTreeComparator: func(a, b string) bool {
-			return a < b
-		},
 
 		// 其他配置参数
 		SwissTableSize: 1 << 10,         // SwissTable默认大小1024
@@ -120,18 +104,6 @@ func WithMemIndexDS(memIndexDS MemIndexType) Option {
 func WithMemIndexShardCount(memIndexShardCount int) Option {
 	return func(opt *Options) {
 		opt.MemIndexShardCount = memIndexShardCount
-	}
-}
-
-func WithBTreeDegree(bTreeDegree int) Option {
-	return func(opt *Options) {
-		opt.BTreeDegree = bTreeDegree
-	}
-}
-
-func WithBTreeComparator(bTreeComparator BTreeLessFunc[string]) Option {
-	return func(opt *Options) {
-		opt.BTreeComparator = bTreeComparator
 	}
 }
 

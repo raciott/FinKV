@@ -42,16 +42,13 @@ type Server struct {
 	closed  bool               // 关闭状态
 	closeMu sync.RWMutex       // 关闭锁
 
-	metricsTicker *time.Ticker       // 指标收集定时器
-	metricsCancel context.CancelFunc // 指标取消函数
-
 	node *node.Node // 集群节点
 }
 
 // New 创建服务器
 func New(db *database.FincasDB, address *string) (*Server, error) {
 	var (
-		addr           = ":8911"
+		addr           = "0.0.0.0:8911"
 		idleTimeout    = 5 * time.Second
 		maxConnections = 1000
 		readTimeout    = 10 * time.Second
@@ -87,6 +84,7 @@ func New(db *database.FincasDB, address *string) (*Server, error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	// 创建服务器
 	s := &Server{
 		cfg:     cfg,
 		db:      db,
@@ -114,9 +112,6 @@ func (s *Server) Start(raftAddr, nodeID, joinAddr string) error {
 		return fmt.Errorf("failed to create listener: %v", err)
 	}
 	s.listener = listener
-
-	// 启动指标收集
-	s.startMetricsCollection()
 
 	log.Printf("listening on %s", s.cfg.Addr)
 
@@ -171,8 +166,12 @@ func (s *Server) Stop() error {
 
 	s.cancel()
 
-	if s.metricsCancel != nil {
-		s.metricsCancel()
+	// 关闭Raft节点
+	if s.node != nil {
+		log.Println("raft server shutting down...")
+		if err := s.node.Shutdown(); err != nil {
+			log.Println(err)
+		}
 	}
 
 	// 关闭监听器
@@ -241,7 +240,7 @@ func (s *Server) handleConnection(ctx context.Context, netConn net.Conn) error {
 			cmdP, ok := isWriteCommand(cmd.Name)
 			if ok && s.node != nil && !s.node.IsLeader() {
 				leaderAddr := s.node
-				return connection.WriteError(fmt.Errorf("redirect to leader: %v", leaderAddr))
+				log.Printf("redirect to leader: %v\n", leaderAddr)
 			}
 
 			// 处理命令
@@ -251,7 +250,7 @@ func (s *Server) handleConnection(ctx context.Context, netConn net.Conn) error {
 			} else if s.node != nil {
 				err := s.node.Apply(command.New(cmdP.CmdType, cmdP.Method, cmd.Args))
 				if err != nil {
-					return fmt.Errorf("failed to apply command: %v", err)
+					log.Printf("failed to apply command: %v\n", err)
 				}
 			}
 
@@ -264,51 +263,7 @@ func (s *Server) handleConnection(ctx context.Context, netConn net.Conn) error {
 	}
 }
 
-// 启动指标收集
-func (s *Server) startMetricsCollection() {
-	ctx, cancel := context.WithCancel(context.Background())
-	s.metricsCancel = cancel
-
-	s.metricsTicker = time.NewTicker(1 * time.Second)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-s.metricsTicker.C:
-				s.collectMetrics()
-			}
-		}
-	}()
-}
-
-// 收集指标
-func (s *Server) collectMetrics() {
-	var totalReadBytes int64
-	var totalWriteBytes int64
-
-	s.conns.Range(func(key, value interface{}) bool {
-		if c, ok := value.(conn.Connection); ok {
-			stats := c.Stats()
-			atomic.AddInt64(&totalReadBytes, stats.ReadBytes)
-			atomic.AddInt64(&totalWriteBytes, stats.WriteBytes)
-		}
-		return true
-	})
-
-	atomic.StoreInt64(&s.stats.BytesReceived, totalReadBytes)
-	atomic.StoreInt64(&s.stats.BytesSent, totalWriteBytes)
-
-	//log.Printf("Metrics: connections=%d commands=%d errors=%d slow_queries=%d bytes_recv=%d bytes_sent=%d",
-	//	atomic.LoadInt64(&s.stats.ConnCount),
-	//	atomic.LoadInt64(&s.stats.CmdCount),
-	//	atomic.LoadInt64(&s.stats.ErrorCount),
-	//	atomic.LoadInt64(&s.stats.SlowCount),
-	//	totalReadBytes,
-	//	totalWriteBytes,
-	//)
-}
-
+// 初始化集群节点
 func (s *Server) initCluster(conf *node.Config) error {
 	n, err := node.New(s.db, conf)
 	if err != nil {
@@ -322,11 +277,13 @@ func (s *Server) initCluster(conf *node.Config) error {
 	return nil
 }
 
+// 命令对
 type cmdPair struct {
 	CmdType command.CmdTyp
 	Method  command.MethodTyp
 }
 
+// 判断命令是否为写命令
 func isWriteCommand(cmd string) (cmdPair, bool) {
 	wCmds := map[string]cmdPair{
 		"SET": {command.CmdString, command.MethodSet}, "DEL": {command.CmdString, command.MethodDel}, "INCR": {command.CmdString, command.MethodIncr}, "INCRBY": {command.CmdString, command.MethodIncrBy},

@@ -16,6 +16,7 @@ func New(db *database.FincasDB) *FSM {
 	return &FSM{db: db}
 }
 
+// Apply 实现raft协议中的Apply方法
 func (f *FSM) Apply(log *raft.LogEntry) interface{} {
 	var cmd command.BaseCmd
 	if err := json.Unmarshal(log.Command, &cmd); err != nil {

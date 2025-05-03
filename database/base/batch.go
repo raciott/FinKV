@@ -14,8 +14,6 @@ type OpType uint8
 const (
 	OpPut OpType = iota + 1
 	OpDelete
-	OpExpire
-	OpPersist
 )
 
 type BatchOptions struct {
@@ -125,7 +123,7 @@ func (wb *WriteBatch) Commit() error {
 	return wb.CommitWithContext(ctx)
 }
 
-// CommitWithContext 提交批量操作，支持超时控制
+// CommitWithContext 提交批量操作
 func (wb *WriteBatch) CommitWithContext(ctx context.Context) error {
 	wb.mu.Lock()
 	defer wb.mu.Unlock()
@@ -175,13 +173,6 @@ func (wb *WriteBatch) optimizeOperations() {
 		}
 
 		// 合并操作
-		// 下面两种组合不需要合并
-		if existing.typ == OpPut && op.typ == OpExpire {
-			continue
-		}
-		if existing.typ == OpExpire && op.typ == OpPersist {
-			continue
-		}
 		merged := wb.mergeOperations(existing, op)
 		keyOps[op.key] = merged
 	}
@@ -214,7 +205,7 @@ func (wb *WriteBatch) prepareBatch() error {
 		switch op.typ {
 		case OpPut:
 			continue
-		case OpDelete, OpExpire, OpPersist:
+		case OpDelete:
 			exists, err := wb.db.Exists(op.key)
 			if err != nil {
 				return fmt.Errorf("failed to check key existence: %w", err)
@@ -229,8 +220,6 @@ func (wb *WriteBatch) prepareBatch() error {
 
 // 执行操作
 func (wb *WriteBatch) executeOperations(ctx context.Context) error {
-	wb.db.expireMu.Lock()
-	defer wb.db.expireMu.Unlock()
 
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("batch execution cancelled: %w", err)
@@ -249,13 +238,6 @@ func (wb *WriteBatch) executeOperations(ctx context.Context) error {
 		}
 	}
 
-	if wb.db.needFlush && wb.db.dbOpts.FlushTTLOnChange {
-		if err := wb.db.saveTTLMetadata(); err != nil {
-			return fmt.Errorf("failed to save TTL metadata: %w", err)
-		}
-		wb.db.needFlush = false
-	}
-
 	wb.committed = true
 	return nil
 }
@@ -268,16 +250,6 @@ func (wb *WriteBatch) executeOperation(op operation) error {
 		err = wb.db.bc.Put(op.key, []byte(op.value))
 	case OpDelete:
 		err = wb.db.bc.Del(op.key)
-		if err == nil {
-			delete(wb.db.expireMap, op.key)
-		}
-	case OpExpire:
-		expireAt := op.created.Add(op.ttl)
-		wb.db.expireMap[op.key] = expireAt
-		wb.db.needFlush = true
-	case OpPersist:
-		delete(wb.db.expireMap, op.key)
-		wb.db.needFlush = true
 	}
 
 	return err
@@ -300,14 +272,6 @@ func (wb *WriteBatch) rollback(failedOp operation) {
 			// 恢复删除的数据
 			if val, err := wb.db.Get(op.key); err == nil {
 				_ = wb.db.bc.Put(op.key, []byte(val))
-			}
-		case OpExpire:
-			// 取消过期
-			delete(wb.db.expireMap, op.key)
-		case OpPersist:
-			// 恢复过期
-			if expAt, ok := wb.db.expireMap[op.key]; ok {
-				wb.db.expireMap[op.key] = expAt
 			}
 		}
 	}

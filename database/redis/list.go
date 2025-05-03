@@ -301,3 +301,52 @@ func (rl *RList) RPop(key string) (string, error) {
 
 	return value, nil
 }
+
+// LRange 返回列表指定范围内的元素
+func (rl *RList) LRange(key string, start, stop int) ([]string, error) {
+	length, err := rl.getListLen(key)
+	if err != nil {
+		return nil, err
+	}
+	if length == 0 {
+		return []string{}, nil
+	}
+
+	head, _, err := rl.getListPointers(key)
+	if err != nil {
+		return nil, err
+	}
+
+	if start < 0 {
+		start = int(length) + start
+	}
+	if stop < 0 {
+		stop = int(length) + stop
+	}
+
+	if start < 0 {
+		start = 0
+	}
+	if stop >= int(length) {
+		stop = int(length) - 1
+	}
+	if start > stop {
+		return []string{}, nil
+	}
+
+	result := make([]string, 0, stop-start+1)
+	for i := start; i <= stop; i++ {
+		value, err := rl.dw.GetDB().Get(GetListItemKey(key, head+int64(i)))
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, value)
+	}
+
+	return result, nil
+}
+
+// LLen 返回列表的长度
+func (rl *RList) LLen(key string) (int64, error) {
+	return rl.getListLen(key)
+}

@@ -48,7 +48,7 @@ func (rf *Raft) BecomeCandidate() bool {
 func (rf *Raft) StartElection(args *RequestVoteArgs) {
 	// 开始选举的时候才开始选举定时
 	rf.resetElectionTimer()
-	log.Print("开始选举Leader\n")
+	log.Print("Start to election Leader\n")
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
@@ -164,10 +164,10 @@ func (rf *Raft) ReplyVote(args *RequestVoteArgs, reply *RequestVoteReply) error 
 		rf.CurrentTerm = args.Term
 		rf.CurrentRole = Follower
 		rf.VotedFor = args.NodeId
-		log.Print("同意投票\n")
+		log.Print("Agree to vote\n")
 		reply.VoteGranted = true
 	} else {
-		log.Print("拒绝投票\n")
+		log.Print("Refuse to vote\n")
 		reply.VoteGranted = false
 	}
 	reply.NodeId = rf.RaftAddr

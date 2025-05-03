@@ -1,4 +1,3 @@
-// Package err_def 定义了FincasKV系统中使用的所有错误类型
 package err_def
 
 import (

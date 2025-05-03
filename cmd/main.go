@@ -80,10 +80,12 @@ func main() {
 
 	// 等待接收终止信号
 	<-sigCh
-	log.Println("Shutting down...") // 收到信号，开始关闭服务
 
 	// 停止服务器
 	if err := srv.Stop(); err != nil {
 		log.Printf("Error shutting down: %v", err) // 关闭过程中出现错误，记录但不退出
 	}
+
+	log.Println("Shutting down...") // 收到信号，开始关闭服务
+
 }

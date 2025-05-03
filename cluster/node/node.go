@@ -62,19 +62,6 @@ func (n *Node) setupRaft() error {
 	return nil
 }
 
-// Join 将一个新节点加入到集群中。
-//func (n *Node) Join(nodeID, addr string) error {
-//	log.Printf("received join request for remote node %s at %s", nodeID, addr)
-//
-//	err := n.raft.Join(nodeID, addr, n.conf.JoinAddr)
-//	if err != nil {
-//		return err
-//	}
-//
-//	log.Printf("node %s at %s joined successfully", nodeID, addr)
-//	return nil
-//}
-
 // Apply 应用一个命令到Raft集群，只有Leader节点可以执行此操作。
 func (n *Node) Apply(cmd command.Command) error {
 	if !n.IsLeader() {
@@ -108,8 +95,11 @@ func (n *Node) GetLeaderAddr() string {
 	return addr
 }
 
-//// Shutdown 关闭Raft节点。
-//func (n *Node) Shutdown() error {
-//	future := n.raft.Shutdown()
-//	return future.Error()
-//}
+// Shutdown 关闭Raft节点。
+func (n *Node) Shutdown() error {
+	err := n.raft.Shutdown()
+	if err != nil {
+		return fmt.Errorf("failed to shutdown raft node: %v", err)
+	}
+	return nil
+}

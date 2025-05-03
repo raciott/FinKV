@@ -9,6 +9,8 @@ import (
 	"strconv"
 )
 
+// redis的RESP协议(用于命令传输)
+
 const (
 	STRING  byte = '+' // 简单字符串
 	ERROR   byte = '-' // 错误消息
@@ -205,37 +207,6 @@ func (w *Writer) WriteInteger(n int64) error {
 	return err
 }
 
-// WriteBulk 写入一个数组
-func (w *Writer) WriteBulk(b []byte) error {
-	if b == nil {
-		_, err := w.writer.Write([]byte("$-1\r\n"))
-		return err
-	}
-
-	_, err := w.writer.Write([]byte{BULK})
-	if err != nil {
-		return err
-	}
-
-	_, err = w.writer.Write([]byte(strconv.Itoa(len(b))))
-	if err != nil {
-		return err
-	}
-
-	_, err = w.writer.Write(CRLF)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.writer.Write(b)
-	if err != nil {
-		return err
-	}
-
-	_, err = w.writer.Write(CRLF)
-	return err
-}
-
 // WriteArray 写入一堆数组
 func (w *Writer) WriteArray(arr [][]byte) error {
 	if arr == nil {
@@ -266,4 +237,35 @@ func (w *Writer) WriteArray(arr [][]byte) error {
 	}
 
 	return nil
+}
+
+// WriteBulk 写入一个数组
+func (w *Writer) WriteBulk(b []byte) error {
+	if b == nil {
+		_, err := w.writer.Write([]byte("$-1\r\n"))
+		return err
+	}
+
+	_, err := w.writer.Write([]byte{BULK})
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write([]byte(strconv.Itoa(len(b))))
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write(CRLF)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write(b)
+	if err != nil {
+		return err
+	}
+
+	_, err = w.writer.Write(CRLF)
+	return err
 }

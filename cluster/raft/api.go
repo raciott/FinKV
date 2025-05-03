@@ -3,7 +3,6 @@ package raft
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -11,17 +10,21 @@ import (
 	"time"
 )
 
-// StartRaftServer 启动Raft服务器
+// StartRaftServer 启动Raft服务器及其相关组件
 func StartRaftServer(rf *Raft, joinAddr string) {
 
+	// 启动raft服务器
 	go startRaftServer(rf)
 
+	// 等待2秒，确保raft服务器启动成功
+	time.Sleep(1 * time.Second)
+
+	// 若是没有指定集群节点，以自身做作为集群节点
 	if joinAddr == "" {
 		joinAddr = rf.RaftAddr
 	}
 
-	time.Sleep(2 * time.Second)
-
+	// 创建RPC客户端(与集群节点进行连接)
 	client, err := rpc.DialHTTP("tcp", joinAddr)
 	if err != nil {
 		log.Fatalf("Error connecting to central node: %s", err)
@@ -33,17 +36,19 @@ func StartRaftServer(rf *Raft, joinAddr string) {
 		log.Fatalf("RPC error: %s", err)
 	}
 
+	// 获取集群节点列表并记录
 	rf.Mu.Lock()
 	rf.Peers = reply.Peers
 	log.Printf("Node %s initial peers: %v\n", rf.NodeID, rf.Peers)
 	rf.Mu.Unlock()
 
-	go rf.HeartBeatTimerStart()
-	go rf.ElectionTimerStart()
-	rf.ElectionTimer.Stop()
-	go rf.circle()
+	go rf.HeartBeatTimerStart() // 启动心跳检测(用于查看从节点是否存活)
+	go rf.ElectionTimerStart()  // 启动选举定时器
+	rf.ElectionTimer.Stop()     // 停止选举定时器(暂时停止，依靠circle激活)
+	go rf.circle()              // 启动心跳检测循环(用于查看leader是否存活)
 }
 
+// startRaftServer 启动Raft服务器
 func startRaftServer(rf *Raft) {
 	err := rpc.Register(rf)
 	if err != nil {
@@ -52,35 +57,21 @@ func startRaftServer(rf *Raft) {
 
 	rpc.HandleHTTP()
 
-	// 修改这一行，不要在port前添加冒号
 	listener, err := net.Listen("tcp", rf.RaftAddr)
 	if err != nil {
 		log.Fatalf("Error starting server: %s", err)
 	}
 
-	go http.Serve(listener, nil)
-}
+	// 创建 http.Server 实例并赋值给 rf.Server
+	rf.Server = &http.Server{Handler: nil}
 
-// Join 节点加入集群(方便外部调用加入集群)
-//func (rf *Raft) Join(nodeID, raftAddr, joinAddr string) error {
-//	client, err := rpc.DialHTTP("tcp", joinAddr)
-//	if err != nil {
-//		log.Fatalf("Error connecting to central node: %s", err)
-//	}
-//	args := &AddPeerArgs{NewPeer: raftAddr}
-//	var reply AddPeerReply
-//	err = client.Call("Raft.RegisterNode", args, &reply)
-//	if err != nil {
-//		log.Fatalf("RPC error: %s", err)
-//	}
-//
-//	rf.Mu.Lock()
-//	rf.Peers = reply.Peers
-//	log.Printf("Node %s initial peers: %v\n", rf.NodeID, rf.Peers)
-//	rf.Mu.Unlock()
-//
-//	return nil
-//}
+	go func() {
+		err := rf.Server.Serve(listener)
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Println(err)
+		}
+	}()
+}
 
 // Apply 日志核心内容(方便外部调用) -- 获取命令后添加日志
 func (rf *Raft) Apply(cmd []byte, timeout time.Duration) error {
@@ -110,6 +101,20 @@ func (rf *Raft) Apply(cmd []byte, timeout time.Duration) error {
 	}
 }
 
+// Shutdown 关闭Raft服务器
+func (rf *Raft) Shutdown() interface{} {
+	rf.Mu.Lock()
+	defer rf.Mu.Unlock()
+	if rf.Server != nil {
+		err := rf.Server.Shutdown(context.Background())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// circle 循环进行选举
 func (rf *Raft) circle() {
 Circle:
 	for {
@@ -150,8 +155,8 @@ Circle:
 		rf.Mu.Lock()
 
 		if rf.CurrentRole != Leader && rf.LastHeartBeatTime != 0 && (time.Now().UnixMilli()-rf.LastHeartBeatTime) > int64(rf.Timeout*1000) {
-			fmt.Printf("心跳检测超时，已超过%d秒\n", rf.Timeout)
-			fmt.Println("即将重新开启选举")
+			log.Printf("心跳检测超时，已超过%d秒\n", rf.Timeout)
+			log.Println("即将重新开启选举")
 			rf.CurrentRole = Follower
 			rf.CurrentLeader = "null"
 			rf.VotedFor = "null"

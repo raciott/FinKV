@@ -36,6 +36,15 @@ func (rs *RString) Release() {
 	stringPool.Put(rs) // 将实例放回对象池以便复用
 }
 
+// Scan 获取所有的键
+func (rs *RString) Scan() ([]string, error) {
+	keys, err := rs.dw.GetDB().Keys("*")
+	if err != nil {
+		return nil, err
+	}
+	return keys, nil
+}
+
 // Set 设置键值对
 // 实现Redis SET命令的功能
 func (rs *RString) Set(key, value string) error {

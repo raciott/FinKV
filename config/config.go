@@ -24,7 +24,6 @@ type NetworkConfig struct {
 type MemIndexConfig struct {
 	DataStructure         string // 数据结构
 	ShardCount            int    // 分片数量
-	BTreeDegree           int    // BTree 阶数
 	SwissTableInitialSize int    // SwissTable 初始大小
 }
 
@@ -84,7 +83,6 @@ func loadConfig(v *viper.Viper) *Config {
 	// 加载索引配置
 	cfg.MemIndex.DataStructure = v.GetString("mem_index.data_structure")
 	cfg.MemIndex.ShardCount = v.GetInt("mem_index.shard_count")
-	cfg.MemIndex.BTreeDegree = v.GetInt("mem_index.btree_degree")
 	cfg.MemIndex.SwissTableInitialSize = v.GetInt("mem_index.swiss_table_initial_size")
 
 	// 加载缓存配置

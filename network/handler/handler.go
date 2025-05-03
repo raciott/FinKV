@@ -29,8 +29,10 @@ func New(db *database.FincasDB) *Handler {
 // Handle 处理命令
 func (h *Handler) Handle(conn *conn.Connection, cmd *protocol.Command) error {
 	switch strings.ToUpper(cmd.Name) {
+	//system
 	case "PING":
 		return h.handlePing(conn, cmd)
+	// string
 	case "SET":
 		return h.handleSet(conn, cmd)
 	case "GET":
@@ -66,7 +68,11 @@ func (h *Handler) Handle(conn *conn.Connection, cmd *protocol.Command) error {
 		return h.handleLPop(conn, cmd)
 	case "RPOP":
 		return h.handleRPop(conn, cmd)
-		// Hash commands
+	case "LRANGE":
+		return h.handleLRange(conn, cmd)
+	case "LLEN":
+		return h.handleLLen(conn, cmd)
+	// Hash commands
 	case "HSET":
 		return h.handleHSet(conn, cmd)
 	case "HGET":
@@ -397,6 +403,48 @@ func (h *Handler) handleRPop(conn *conn.Connection, cmd *protocol.Command) error
 	}
 
 	return conn.WriteString(val)
+}
+
+// 处理lrange(获取列表指定区间的元素)
+func (h *Handler) handleLRange(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 3 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	start, err := strconv.ParseInt(string(cmd.Args[1]), 10, 64)
+	if err != nil {
+		return conn.WriteError(fmt.Errorf("invalid start value %s", string(cmd.Args[1])))
+	}
+	end, err := strconv.ParseInt(string(cmd.Args[2]), 10, 64)
+	if err != nil {
+		return conn.WriteError(fmt.Errorf("invalid end value %s", string(cmd.Args[2])))
+	}
+
+	vals, err := h.db.LRange(string(cmd.Args[0]), int(start), int(end))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	var res [][]byte
+	for _, val := range vals {
+		res = append(res, []byte(val))
+	}
+
+	return conn.WriteArray(res)
+}
+
+// 处理llen(获取列表长度)
+func (h *Handler) handleLLen(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 1 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	n, err := h.db.LLen(string(cmd.Args[0]))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	return conn.WriteInteger(n)
 }
 
 // 处理hset(设置哈希值)

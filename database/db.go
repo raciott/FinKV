@@ -2,16 +2,16 @@ package database
 
 import (
 	"FinKV/config"
-	redis2 "FinKV/database/redis"
+	redis "FinKV/database/redis"
 	"FinKV/storage"
 	"log"
 )
 
 // FincasDB 是主数据库结构体，包含了各种数据类型的操作接口
 type FincasDB struct {
-	*redis2.RString // 字符串操作接口
-	*redis2.RHash   // 哈希表操作接口
-	*redis2.RList   // 列表操作接口
+	*redis.RString // 字符串操作接口
+	*redis.RHash   // 哈希表操作接口
+	*redis.RList   // 列表操作接口
 	//*redis.RSet    // 集合操作接口
 	//*redis.RZSet   // 有序集合操作接口
 }
@@ -38,15 +38,13 @@ func NewFincasDB(dataDir string) *FincasDB {
 		var memDS storage.MemIndexType
 		switch conf.MemIndex.DataStructure {
 		case "btree": // B树索引
+			//TODO 还没有实现B树索引
 			memDS = storage.BTree
-			// 设置B树度数，最小为8
-			bcOpts = append(bcOpts, storage.WithBTreeDegree(max(conf.MemIndex.BTreeDegree, 8)))
 		case "skiplist": // 跳表索引
+			//TODO 还没有实现跳表索引
 			memDS = storage.SkipList
 		case "swisstable": // SwissTable哈希索引
 			memDS = storage.SwissTable
-			// 设置初始大小，最小为1024
-			bcOpts = append(bcOpts, storage.WithBTreeDegree(max(conf.MemIndex.SwissTableInitialSize, 1024)))
 		default: // 不支持的索引类型
 			log.Fatal("Unsupported MemIndex data structure: " + conf.MemIndex.DataStructure)
 		}
@@ -64,6 +62,9 @@ func NewFincasDB(dataDir string) *FincasDB {
 			bcOpts = append(bcOpts, storage.WithMemCacheDS(storage.LRU))
 			// 设置缓存大小，最小为1024
 			bcOpts = append(bcOpts, storage.WithMemCacheSize(max(conf.MemCache.Size, 1024)))
+		case "lfu":
+			//TODO LFU并未实现
+			log.Fatal("lru并未实现")
 		default: // 不支持的缓存类型
 			log.Fatal("Unsupported MemCache data structure: " + conf.MemCache.DataStructure)
 		}
@@ -91,14 +92,14 @@ func NewFincasDB(dataDir string) *FincasDB {
 	}
 
 	// 创建数据库包装器
-	dw := redis2.NewBDWrapper(nil, bcOpts...)
+	dw := redis.NewBDWrapper(bcOpts...)
 	// 创建并返回数据库实例，初始化各种数据类型的操作接口
 	return &FincasDB{
-		RString: redis2.NewRString(dw), // 字符串操作接口
-		RHash:   redis2.NewRHash(dw),   // 哈希表操作接口
-		RList:   redis2.NewRList(dw),   // 列表操作接口
-		//RSet:    redis2.NewRSet(dw),    // 集合操作接口
-		//RZSet:   redis2.NewRZSet(dw),   // 有序集合操作接口
+		RString: redis.NewRString(dw), // 字符串操作接口
+		RHash:   redis.NewRHash(dw),   // 哈希表操作接口
+		RList:   redis.NewRList(dw),   // 列表操作接口
+		//RSet:    redis.NewRSet(dw),    // 集合操作接口
+		//RZSet:   redis.NewRZSet(dw),   // 有序集合操作接口
 	}
 }
 

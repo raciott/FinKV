@@ -28,8 +28,6 @@ func (rf *Raft) ReceiveHeartBeat(args *HeartBeatArgs, reply *HeartBeatReply) err
 		return nil
 	}
 
-	//log.Printf("%s 收到来自 %s 的心跳消息\n", rf.NodeID, args.LeaderID)
-	//fmt.Println(rf.Logs)
 	rf.CurrentTerm = args.Term
 	rf.CurrentLeader = args.LeaderID
 	rf.CurrentRole = Follower

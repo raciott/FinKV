@@ -1,7 +1,8 @@
 package raft
 
 import (
-	"encoding/json"
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"net/rpc"
@@ -341,16 +342,17 @@ func (rf *Raft) SaveLogs() error {
 		rf.LogFile = fmt.Sprintf("%s/%s", logDir, "raft-log.bolt")
 	}
 
-	// 将日志序列化为JSON
-	data, err := json.Marshal(rf.Logs)
+	// 使用gob进行编码实现日志压缩
+	file, err := os.Create(rf.LogFile)
 	if err != nil {
-		return fmt.Errorf("序列化日志失败: %v", err)
+		return err
 	}
+	defer file.Close()
 
-	// 写入文件
-	err = os.WriteFile(rf.LogFile, data, 0644)
+	encoder := gob.NewEncoder(file)
+	err = encoder.Encode(rf.Logs)
 	if err != nil {
-		return fmt.Errorf("写入日志文件失败: %v", err)
+		return fmt.Errorf("gob编码失败: %v", err)
 	}
 
 	//log.Printf("节点 %s: 成功将 %d 条日志持久化到 %s\n", rf.NodeID, len(rf.Logs), rf.LogFile)
@@ -390,11 +392,14 @@ func (rf *Raft) LoadLogs() error {
 		return nil
 	}
 
-	// 反序列化JSON到日志数组
+	// 使用job解析Bolt数据
 	var logs []LogEntry
-	err = json.Unmarshal(data, &logs)
+
+	reader := bytes.NewReader(data)
+	decoder := gob.NewDecoder(reader)
+	err = decoder.Decode(&logs)
 	if err != nil {
-		return fmt.Errorf("反序列化日志失败: %v", err)
+		return fmt.Errorf("gob 解码失败: %v", err)
 	}
 
 	rf.Mu.Lock()
