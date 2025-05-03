@@ -12,8 +12,7 @@ type FincasDB struct {
 	*redis.RString // 字符串操作接口
 	*redis.RHash   // 哈希表操作接口
 	*redis.RList   // 列表操作接口
-	//*redis.RSet    // 集合操作接口
-	//*redis.RZSet   // 有序集合操作接口
+	*redis.RSet    // 集合操作接口
 }
 
 // NewFincasDB 创建并初始化一个新的FincasDB实例
@@ -98,8 +97,7 @@ func NewFincasDB(dataDir string) *FincasDB {
 		RString: redis.NewRString(dw), // 字符串操作接口
 		RHash:   redis.NewRHash(dw),   // 哈希表操作接口
 		RList:   redis.NewRList(dw),   // 列表操作接口
-		//RSet:    redis.NewRSet(dw),    // 集合操作接口
-		//RZSet:   redis.NewRZSet(dw),   // 有序集合操作接口
+		RSet:    redis.NewRSet(dw),    // 集合操作接口
 	}
 }
 
@@ -109,6 +107,5 @@ func (db *FincasDB) Close() {
 	db.RString.Release() // 释放字符串操作接口
 	db.RHash.Release()   // 释放哈希表操作接口
 	db.RList.Release()   // 释放列表操作接口
-	//db.RSet.Release()    // 释放集合操作接口
-	//db.RZSet.Release()   // 释放有序集合操作接口
+	db.RSet.Release()    // 释放集合操作接口
 }

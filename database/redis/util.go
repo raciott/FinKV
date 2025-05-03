@@ -19,7 +19,7 @@ func GetHashFieldKey(key, field string) string {
 }
 
 func GetHashLenKey(key string) string {
-	return fmt.Sprintf("%s:%s:_len_", HashPrefix, key)
+	return fmt.Sprintf("%s:%s:len", HashPrefix, key)
 }
 
 func GetListItemKey(key string, index int64) string {
@@ -31,9 +31,17 @@ func GetListLenKey(key string) string {
 }
 
 func GetListHeadKey(key string) string {
-	return fmt.Sprintf("%s:%s:_head_", ListPrefix, key)
+	return fmt.Sprintf("%s:%s:head", ListPrefix, key)
 }
 
 func GetListTailKey(key string) string {
-	return fmt.Sprintf("%s:%s:_tail_", ListPrefix, key)
+	return fmt.Sprintf("%s:%s:tail", ListPrefix, key)
+}
+
+func GetSetLenKey(key string) string {
+	return fmt.Sprintf("%s:%s:_len_", SetPrefix, key)
+}
+
+func GetSetMemberKey(key, member string) string {
+	return fmt.Sprintf("%s:%s:%s", SetPrefix, key, member)
 }

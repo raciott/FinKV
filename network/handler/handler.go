@@ -93,6 +93,13 @@ func (h *Handler) Handle(conn *conn.Connection, cmd *protocol.Command) error {
 		return h.handleHGetAll(conn, cmd)
 	case "HLEN":
 		return h.handleHLen(conn, cmd)
+	// Set commands
+	case "SADD":
+		return h.handleSAdd(conn, cmd)
+	case "SREM":
+		return h.handleSRem(conn, cmd)
+	case "SMEMBERS":
+		return h.handleSMembers(conn, cmd)
 	default:
 		return nil
 	}
@@ -642,6 +649,65 @@ func (h *Handler) handleHIncrBy(conn *conn.Connection, cmd *protocol.Command) er
 	}
 
 	n, err := h.db.HIncrBy(string(cmd.Args[0]), string(cmd.Args[1]), val)
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	return conn.WriteInteger(n)
+}
+
+// 处理sadd(添加元素到集合)
+func (h *Handler) handleSAdd(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) < 2 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	key := string(cmd.Args[0])
+	var words []string
+	for _, arg := range cmd.Args[1:] {
+		words = append(words, string(arg))
+	}
+
+	n, err := h.db.SAdd(key, words...)
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	return conn.WriteInteger(n)
+}
+
+// 处理smembers(获取集合中的所有元素)
+func (h *Handler) handleSMembers(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) != 1 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	members, err := h.db.SMembers(string(cmd.Args[0]))
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	var res [][]byte
+	for _, member := range members {
+		res = append(res, []byte(member))
+	}
+
+	return conn.WriteArray(res)
+}
+
+// 处理srem(从集合中删除元素)
+func (h *Handler) handleSRem(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) < 2 {
+		return conn.WriteError(ErrWrongArgCount)
+	}
+
+	key := string(cmd.Args[0])
+	var members []string
+	for _, arg := range cmd.Args[1:] {
+		members = append(members, string(arg))
+	}
+
+	n, err := h.db.SRem(key, members...)
 	if err != nil {
 		return conn.WriteError(err)
 	}
