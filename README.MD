@@ -168,3 +168,18 @@ go build -o FinKV.exe ./FinKV/cmd/main.go
 ├── go.sum                   // Go 依赖校验
 └── logo.txt                 // 项目 Logo
 ```
+
+
+### TODO
+- [ ] 支持Redis类型
+  - [ ] Set类型实现
+  - [ ] ZSet(有序集合)类型实现
+- [ ] 增强索引结构
+  - [ ] BTree索引实现
+  - [ ] SkipList索引实现
+- [ ] 数据管理功能
+  - [ ] 支持过期时间(TTL)机制
+  - [ ] 内存使用优化
+- [ ] raft协议实现
+  - [ ] 快照机制(仅实现了日志)
+
