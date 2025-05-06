@@ -100,6 +100,10 @@ func (h *Handler) Handle(conn *conn.Connection, cmd *protocol.Command) error {
 		return h.handleSRem(conn, cmd)
 	case "SMEMBERS":
 		return h.handleSMembers(conn, cmd)
+	case "SDIFF":
+		return h.handleSDiff(conn, cmd)
+	case "SUNION":
+		return h.handleSUnion(conn, cmd)
 	default:
 		return nil
 	}
@@ -713,4 +717,52 @@ func (h *Handler) handleSRem(conn *conn.Connection, cmd *protocol.Command) error
 	}
 
 	return conn.WriteInteger(n)
+}
+
+// 处理sdiff(获取多个集合的差集)
+func (h *Handler) handleSDiff(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) == 0 {
+		return conn.WriteArray(nil)
+	}
+
+	var keys []string
+	for _, arg := range cmd.Args {
+		keys = append(keys, string(arg))
+	}
+
+	vals, err := h.db.SDiff(keys...)
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	var res [][]byte
+	for _, val := range vals {
+		res = append(res, []byte(val))
+	}
+
+	return conn.WriteArray(res)
+}
+
+// 处理sunion(获取多个集合的并集)
+func (h *Handler) handleSUnion(conn *conn.Connection, cmd *protocol.Command) error {
+	if len(cmd.Args) == 0 {
+		return conn.WriteArray(nil)
+	}
+
+	var keys []string
+	for _, arg := range cmd.Args {
+		keys = append(keys, string(arg))
+	}
+
+	vals, err := h.db.SUnion(keys...)
+	if err != nil {
+		return conn.WriteError(err)
+	}
+
+	var res [][]byte
+	for _, val := range vals {
+		res = append(res, []byte(val))
+	}
+
+	return conn.WriteArray(res)
 }

@@ -161,3 +161,67 @@ func (rs *RSet) SRem(key string, words ...string) (int64, error) {
 
 	return removed, nil
 }
+
+// SDiff 获取集合的差集
+func (rs *RSet) SDiff(keys ...string) ([]string, error) {
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	members, err := rs.SMembers(keys[0])
+	if err != nil {
+		return nil, err
+	}
+
+	if len(keys) == 1 {
+		return members, nil
+	}
+
+	result := make(map[string]struct{})
+	for _, member := range members {
+		result[member] = struct{}{}
+	}
+
+	for _, key := range keys[1:] {
+		otherMembers, err := rs.SMembers(key)
+		if err != nil {
+			return nil, err
+		}
+		for _, member := range otherMembers {
+			delete(result, member)
+		}
+	}
+
+	diff := make([]string, 0, len(result))
+	for member := range result {
+		diff = append(diff, member)
+	}
+
+	return diff, nil
+}
+
+// SUnion 获取集合的并集
+func (rs *RSet) SUnion(keys ...string) ([]string, error) {
+	if len(keys) == 0 {
+		return nil, nil
+	}
+
+	result := make(map[string]struct{})
+
+	for _, key := range keys {
+		members, err := rs.SMembers(key)
+		if err != nil {
+			return nil, err
+		}
+		for _, member := range members {
+			result[member] = struct{}{}
+		}
+	}
+
+	union := make([]string, 0, len(result))
+	for member := range result {
+		union = append(union, member)
+	}
+
+	return union, nil
+}
